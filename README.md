@@ -23,7 +23,7 @@ A MelonLoader mod for Animal Jam Play Wild.
 This is a Visual Studio project.
 
 1.  Clone this repository.
-2.  Open `PlayWild - v1.4/PlayWild/PlayWild.sln` in Visual Studio.
+2.  Open `PlayWild Mods/PlayWild/PlayWild.sln` in Visual Studio.
 3.  Build the solution (Release configuration recommended).
 4.  The compiled DLL will be in the `PlayWild - v1.4/PlayWild/bin/Release` folder.
 5.  Copy the compiled `PlayWild.dll` to your `Animal Jam\Data\build\Mods` folder.
