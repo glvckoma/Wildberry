@@ -1,6 +1,6 @@
 # 🫐 WildBerry 🫐
 
-A MelonLoader mod for Animal Jam Play Wild.
+A MelonLoader mod for Animal Jam Play Wild created by Glockoma.
 
 ## Tutorial
 
@@ -35,3 +35,4 @@ The `dump.cs` file in this repository contains a dump of the game's information.
 ## Disclaimer
 
 This mod is for educational and research purposes. Use responsibly and I am not responsible for any bans that may occur.
+
