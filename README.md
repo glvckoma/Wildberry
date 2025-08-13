@@ -25,8 +25,8 @@ This is a Visual Studio project.
 1.  Clone this repository.
 2.  Open `PlayWild Mods/PlayWild/PlayWild.sln` in Visual Studio.
 3.  Build the solution (Release configuration recommended).
-4.  The compiled DLL will be in the `PlayWild - v1.4/PlayWild/bin/Release` folder.
-5.  Copy the compiled `PlayWild.dll` to your `Animal Jam\Data\build\Mods` folder.
+4.  The compiled DLL will be in the `PlayWild Mods/PlayWild/bin/Release` folder.
+5.  Copy the compiled `PlayWild.dll` to your `Animal Jam\Data\build\Mods` folder(should be automatic on build.)
 
 ## Game Information
 
@@ -35,4 +35,7 @@ The `dump.cs` file in this repository contains a dump of the game's information.
 ## Disclaimer
 
 This mod is for educational and research purposes. Use responsibly and I am not responsible for any bans that may occur.
+
+This isn't built around the Steam version of the game so if you run into issues that's why.
+
 
