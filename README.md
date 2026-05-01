@@ -18,6 +18,39 @@ A MelonLoader mod for Animal Jam Play Wild created by Glockoma.
 2.  Follow the same process if you haven't already, but copy over the files from the Unity Explorer `.zip` you downloaded (`UserLibs` and `Mods`) into `C:\Users\Your User\AppData\Local\Programs\WildWorks\Animal Jam\Data\build\Mods` and `C:\Users\Your User\AppData\Local\Programs\WildWorks\Animal Jam\Data\build\UserLibs`.
 3.  Launch Play Wild as normal to get a new console and GUI to play around with.
 
+## Features
+
+### Player
+
+- **Speed Hack** - Modify your movement speed
+- **Size Hack** - Change your character's size
+- **Flying Mode** - Fly around the map freely
+- **Player Teleport** - Teleport to locations or other players
+- **Premium Member** - Activate premium membership locally
+- **Bypass Membership Limit** - Remove the sapphire membership purchase limit
+- **Device ID Spoofing** - Spoof your device identifier
+- **Anti-AFK** - Prevent being kicked for inactivity
+
+### World
+
+- **Auto Nocturnal** - Automatically toggle nocturnal mode
+- **Auto Fact** - Automatically display facts
+- **Time Hack** - Manipulate in-game time
+- **Username Logger** - Log usernames of players in the room
+- **Auto Advertising** - Automatically send advertisements
+- **Expedition Bypass** - Skip energy costs and time requirements for expeditions
+- **Room Info** - Display information about the current room
+
+### Minigames
+
+- **Always Show Dig Rewards** - See dig rewards before digging
+- **Auto Complete Hedgehog Roll** - Automatically complete hedgehog roll
+- **Massive Ball Block Break** - Use a massive ball in block break
+- **Pest Control** - Automate pest control minigame
+- **Phantom Immunity** - Become immune to phantoms
+- **Phantom Dimension** - Manipulate the phantom dimension minigame
+- **Treasure Hunter Solver** - Automatically solve treasure hunts
+
 ## Building from Source
 
 This is a Visual Studio project.

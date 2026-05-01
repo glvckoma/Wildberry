@@ -429,20 +429,25 @@
 		<Compile Include="Features\Player\PremiumMember.cs" />
 		<Compile Include="Features\Player\DeviceIDSpoofing.cs" />
 		<Compile Include="Features\Player\AntiAFK.cs" />
-		
+		<Compile Include="Features\Player\PlayerTeleport.cs" />
+		<Compile Include="Features\Player\BypassMembershipLimit.cs" />
 
 		<Compile Include="Features\World\AutoNocturnal.cs" />
 		<Compile Include="Features\World\AutoFact.cs" />
 		<Compile Include="Features\World\TimeHack.cs" />
 		<Compile Include="Features\World\UsernameLogger.cs" />
 		<Compile Include="Features\World\AutoAdvertising.cs" />
+		<Compile Include="Features\World\ExpeditionBypass.cs" />
+		<Compile Include="Features\World\RoomInfo.cs" />
 		<Compile Include="Features\Minigames\AlwaysShowDigRewards.cs" />
 		<Compile Include="Features\Minigames\AutoCompleteHedgehogRoll.cs" />
 		<Compile Include="Features\Minigames\MassiveBallBlockBreak.cs" />
 		<Compile Include="Features\Minigames\PestControl.cs" />
 		<Compile Include="Features\Minigames\PhantomImmunity.cs" />
 		<Compile Include="Features\Minigames\PhantomDimension.cs" />
+		<Compile Include="Features\Minigames\TreasureHunterSolver.cs" />
 		<Compile Include="Interface\WildBerryGUI.cs" />
+		<Compile Include="Interface\WildBerryTheme.cs" />
 		<Compile Include="Utils\PlayerFinder.cs" />
 		<Compile Include="Utils\PersistenceManager.cs" />
 	</ItemGroup>

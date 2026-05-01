@@ -1,5 +1,6 @@
 using UnityEngine;
 using PlayWild.Features.Base;
+using PlayWild.Interface;
 using MelonLoader;
 
 namespace PlayWild.Features.Minigames
@@ -18,14 +19,13 @@ namespace PlayWild.Features.Minigames
 
         public override void OnGUI(Rect area)
         {
-            DrawCheckbox(new Rect(area.x, area.y, 16, 16), IsEnabled, Name, 
+            DrawToggle(new Rect(area.x, area.y, area.width, WildBerryTheme.ToggleHeight), IsEnabled, Name,
                 (value) => { IsEnabled = value; });
         }
 
         public override float GetDynamicHeight()
         {
-            // Just checkbox height since this feature has no additional GUI when enabled
-            return 25f;
+            return WildBerryTheme.ToggleHeight;
         }
 
         private void HedgehogRollAutoComplete()

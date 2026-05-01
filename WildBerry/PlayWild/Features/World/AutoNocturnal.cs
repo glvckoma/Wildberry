@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Linq;
 using PlayWild.Features.Base;
+using PlayWild.Interface;
 using MelonLoader;
 
 namespace PlayWild.Features.World
@@ -9,133 +9,71 @@ namespace PlayWild.Features.World
     public class AutoNocturnal : BaseFeature
     {
         public override string Name => "Auto Nocturnal";
-        
+
         private HashSet<int> processedNocturnals = new HashSet<int>();
+        private float lastScanTime = 0f;
+        private const float SCAN_INTERVAL = 2f;
 
         public override void OnEnable()
         {
             processedNocturnals.Clear();
+            lastScanTime = 0f;
         }
 
         public override void OnUpdate()
         {
             if (!IsEnabled) return;
+            if (Time.time - lastScanTime < SCAN_INTERVAL) return;
+            lastScanTime = Time.time;
             AutoClickNocturnals();
         }
 
         public override void OnGUI(Rect area)
         {
-            DrawCheckbox(new Rect(area.x, area.y, 16, 16), IsEnabled, Name, 
+            DrawToggle(new Rect(area.x, area.y, area.width, WildBerryTheme.ToggleHeight), IsEnabled, Name,
                 (value) => { IsEnabled = value; });
         }
 
         public override float GetDynamicHeight()
         {
-            // Just checkbox height since this feature has no additional GUI when enabled
-            return 25f;
+            return WildBerryTheme.ToggleHeight;
         }
 
         private void AutoClickNocturnals()
         {
             try
             {
-                // Look for SharedJamaaAssets/LevelEventManager/Night_Nocturnals/ path
-                GameObject sharedJamaaAssets = GameObject.Find("SharedJamaaAssets");
-                if (sharedJamaaAssets == null) return;
+                var nocturnalSpawns = UnityEngine.Object.FindObjectsOfType<Il2Cpp.RoomItemSpawn_NocturnalAnimals>(true);
+                if (nocturnalSpawns == null) return;
 
-                Transform levelEventManager = sharedJamaaAssets.transform.Find("LevelEventManager");
-                if (levelEventManager == null) return;
-
-                Transform nightNocturnals = levelEventManager.Find("Night_Nocturnals");
-                if (nightNocturnals == null) return;
-
-                // Search for any Nocturnal_* objects in Night_Nocturnals
-                for (int i = 0; i < nightNocturnals.childCount; i++)
+                foreach (var nocturnalComponent in nocturnalSpawns)
                 {
-                    Transform child = nightNocturnals.GetChild(i);
-                    if (child.name.StartsWith("Nocturnal_"))
+                    if (nocturnalComponent == null) continue;
+
+                    int instanceId = nocturnalComponent.gameObject.GetInstanceID();
+                    if (processedNocturnals.Contains(instanceId)) continue;
+
+                    if (!nocturnalComponent.gameObject.activeInHierarchy)
+                        nocturnalComponent.gameObject.SetActive(true);
+
+                    var touchable = nocturnalComponent.GetComponent<Il2Cpp.Touchable>();
+                    if (touchable == null)
+                        touchable = nocturnalComponent.GetComponentInChildren<Il2Cpp.Touchable>(true);
+
+                    if (touchable == null)
                     {
-                        // Process this nocturnal category and all its children recursively
-                        ProcessNocturnalCategoryRecursive(child);
+                        MelonLogger.Warning($"[WildBerry] No Touchable found on nocturnal: {nocturnalComponent.gameObject.name}");
+                        continue;
                     }
+
+                    nocturnalComponent.OnTouched(touchable);
+                    processedNocturnals.Add(instanceId);
+                    MelonLogger.Msg($"[WildBerry] Auto-clicked nocturnal: {nocturnalComponent.gameObject.name}");
                 }
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Error($"Error in AutoClickNocturnals: {ex.Message}");
-            }
-        }
-
-        private void ProcessNocturnalCategoryRecursive(Transform nocturnalCategory)
-        {
-            try
-            {
-                // First, try to process this object directly
-                ProcessNocturnalObject(nocturnalCategory.gameObject);
-
-                // Then recursively process all children
-                for (int i = 0; i < nocturnalCategory.childCount; i++)
-                {
-                    Transform child = nocturnalCategory.GetChild(i);
-                    ProcessNocturnalCategoryRecursive(child);
-                }
-            }
-            catch (System.Exception ex)
-            {
-                MelonLogger.Error($"Error processing nocturnal category {nocturnalCategory.name}: {ex.Message}");
-            }
-        }
-
-        private void ProcessNocturnalObject(GameObject nocturnalObject)
-        {
-            try
-            {
-                int instanceId = nocturnalObject.GetInstanceID();
-                
-                // Skip if already processed
-                if (processedNocturnals.Contains(instanceId)) return;
-
-                // Try to get the nocturnal component using Il2Cpp wrapper
-                var nocturnalComponent = nocturnalObject.GetComponent<Il2Cpp.RoomItemSpawn_NocturnalAnimals>();
-                if (nocturnalComponent != null)
-                {
-                    // Get the Touchable component for OnTouched parameter
-                    var touchableComponent = nocturnalObject.GetComponent<Il2Cpp.Touchable>();
-                    if (touchableComponent != null)
-                    {
-                        // Auto-click the nocturnal
-                        nocturnalComponent.OnTouched(touchableComponent);
-                        processedNocturnals.Add(instanceId);
-                        MelonLogger.Msg($"[WildBerry] Auto-clicked nocturnal: {nocturnalObject.name} (path: {GetGameObjectPath(nocturnalObject)})");
-                        return;
-                    }
-                }
-
-                // Also check all direct children for nocturnal components
-                for (int i = 0; i < nocturnalObject.transform.childCount; i++)
-                {
-                    GameObject child = nocturnalObject.transform.GetChild(i).gameObject;
-                    int childInstanceId = child.GetInstanceID();
-                    
-                    if (processedNocturnals.Contains(childInstanceId)) continue;
-
-                    var childNocturnalComponent = child.GetComponent<Il2Cpp.RoomItemSpawn_NocturnalAnimals>();
-                    if (childNocturnalComponent != null)
-                    {
-                        var childTouchableComponent = child.GetComponent<Il2Cpp.Touchable>();
-                        if (childTouchableComponent != null)
-                        {
-                            childNocturnalComponent.OnTouched(childTouchableComponent);
-                            processedNocturnals.Add(childInstanceId);
-                            MelonLogger.Msg($"[WildBerry] Auto-clicked nocturnal: {child.name} (path: {GetGameObjectPath(child)})");
-                            return;
-                        }
-                    }
-                }
-            }
-            catch (System.Exception ex)
-            {
-                MelonLogger.Error($"Error processing nocturnal object {nocturnalObject.name}: {ex.Message}");
+                MelonLogger.Error($"[WildBerry] Error in AutoClickNocturnals: {ex.Message}");
             }
         }
     }

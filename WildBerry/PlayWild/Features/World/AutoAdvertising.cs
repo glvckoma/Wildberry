@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using MelonLoader;
 using PlayWild.Features.Base;
+using PlayWild.Interface;
 using UnityEngine;
 
 namespace PlayWild.Features.World
@@ -10,25 +11,21 @@ namespace PlayWild.Features.World
     {
         public override string Name => "Auto Advertising";
 
-        // Runtime state
         private bool isRunning = false;
         private int messageIndex = 0;
         private float lastTickTime = 0f;
         private float nextDelaySeconds = 60f;
         private bool pendingQuickRetry = false;
 
-        // Config (persisted)
         private string messagesMultiline = string.Empty;
         private float intervalSeconds = 60f;
 
-        // UI state
         private Vector2 messagesScroll = Vector2.zero;
 
         public override void Initialize()
         {
             base.Initialize();
 
-            // Load persisted values
             messagesMultiline = GetPersistedValue("messages", string.Empty) ?? string.Empty;
             intervalSeconds = Mathf.Max(10f, GetPersistedValue("intervalSeconds", 60f));
         }
@@ -44,7 +41,6 @@ namespace PlayWild.Features.World
             if (!IsEnabled || !isRunning)
                 return;
 
-            // Tick scheduler
             if (Time.time - lastTickTime >= nextDelaySeconds)
             {
                 try
@@ -60,30 +56,27 @@ namespace PlayWild.Features.World
 
         public override void OnGUI(Rect area)
         {
-            // Checkbox
-            DrawCheckbox(new Rect(area.x, area.y, 16, 16), IsEnabled, Name, v => IsEnabled = v);
+            DrawToggle(new Rect(area.x, area.y, area.width, WildBerryTheme.ToggleHeight), IsEnabled, Name, v => IsEnabled = v);
 
             if (!IsEnabled)
                 return;
 
             float y = area.y + 25f;
 
-            // Status + controls
-            GUI.color = Color.white;
-            GUI.Label(new Rect(area.x + 5, y, 220, 20), isRunning ? "Status: Active" : "Status: Inactive");
+            DrawStatusLabel(new Rect(area.x + 5, y, 220, 20), isRunning ? "Status: Active" : "Status: Inactive",
+                isRunning ? WildBerryTheme.StatusActive : WildBerryTheme.StatusText);
             y += 22f;
 
-            if (GUI.Button(new Rect(area.x + 5, y, 70, 24), "Start"))
+            if (DrawStyledButton(new Rect(area.x + 5, y, 70, WildBerryTheme.ButtonHeight), "Start"))
                 StartAdvertising();
-            if (GUI.Button(new Rect(area.x + 80, y, 70, 24), "Stop"))
+            if (DrawStyledButton(new Rect(area.x + 80, y, 70, WildBerryTheme.ButtonHeight), "Stop"))
                 StopAdvertising();
-            if (GUI.Button(new Rect(area.x + 155, y, 85, 24), "Preview"))
+            if (DrawStyledButton(new Rect(area.x + 155, y, 85, WildBerryTheme.ButtonHeight), "Preview"))
                 PreviewNext();
-            y += 30f;
+            y += 32f;
 
-            // Interval settings (fixed)
-            GUI.Label(new Rect(area.x + 5, y, 110, 20), "Interval (s)");
-            string intStr = GUI.TextField(new Rect(area.x + 115, y, 60, 20), Mathf.RoundToInt(intervalSeconds).ToString());
+            DrawLabel(new Rect(area.x + 5, y, 110, 20), "Interval (s)");
+            string intStr = DrawStyledTextField(new Rect(area.x + 115, y, 60, WildBerryTheme.TextFieldHeight), Mathf.RoundToInt(intervalSeconds).ToString());
             if (float.TryParse(intStr, out float intVal))
             {
                 if (Mathf.Abs(intVal - intervalSeconds) > Mathf.Epsilon)
@@ -92,10 +85,9 @@ namespace PlayWild.Features.World
                     SetPersistedValue("intervalSeconds", intervalSeconds);
                 }
             }
-            y += 26f;
+            y += 28f;
 
-            // Messages input
-            GUI.Label(new Rect(area.x + 5, y, 200, 18), "Messages (one per line)");
+            DrawLabel(new Rect(area.x + 5, y, 200, 18), "Messages (one per line)");
             y += 20f;
 
             float textHeight = 90f;
@@ -103,7 +95,7 @@ namespace PlayWild.Features.World
             Rect innerRect = new Rect(0, 0, scrollRect.width - 20, textHeight);
 
             messagesScroll = GUI.BeginScrollView(scrollRect, messagesScroll, new Rect(innerRect.x, innerRect.y, innerRect.width, innerRect.height));
-            string newMultiline = GUI.TextArea(new Rect(0, 0, innerRect.width, innerRect.height), messagesMultiline);
+            string newMultiline = DrawStyledTextArea(new Rect(0, 0, innerRect.width, innerRect.height), messagesMultiline);
             GUI.EndScrollView();
 
             if (!string.Equals(newMultiline, messagesMultiline, StringComparison.Ordinal))
@@ -116,10 +108,9 @@ namespace PlayWild.Features.World
         public override float GetDynamicHeight()
         {
             if (!IsEnabled)
-                return 25f;
+                return WildBerryTheme.ToggleHeight;
 
-            // Checkbox (25) + status/buttons (30+22) + interval (26) + messages label (20) + text area (90) + spacing
-            return 25f + 22f + 30f + 26f + 20f + 90f + 10f;
+            return 25f + 22f + 32f + 28f + 20f + 90f + 10f;
         }
 
         private void StartAdvertising()
@@ -169,7 +160,6 @@ namespace PlayWild.Features.World
                 return;
             }
 
-            // Try to send current message; only advance on success
             string msg = SelectNextMessage(peekOnly: true);
             bool sent = TrySendChat(msg);
             if (sent)
@@ -179,7 +169,6 @@ namespace PlayWild.Features.World
             }
             else
             {
-                // Keyboard not ready; retry soon without advancing index
                 pendingQuickRetry = true;
             }
         }
@@ -203,8 +192,7 @@ namespace PlayWild.Features.World
 
             if (initialImmediate)
             {
-                // Send immediately, then schedule the next tick
-                lastTickTime = Time.time - 99999f; // force immediate
+                lastTickTime = Time.time - 99999f;
                 nextDelaySeconds = 0f;
                 return;
             }
@@ -213,7 +201,6 @@ namespace PlayWild.Features.World
 
             lastTickTime = Time.time;
             nextDelaySeconds = delay;
-            // Do not clear pendingQuickRetry here; the next tick will clear it upon success
         }
 
         private List<string> GetMessages()
@@ -247,7 +234,6 @@ namespace PlayWild.Features.World
                 try { km.focusedInputField = km.chatInputField; } catch { }
                 try { if (km.chatInputField != null) km.chatInputField.IsSelectedOrFocused = true; } catch { }
 
-                // Prefer using the widget API if available; fallback to label text
                 try { if (km.chatInputField?.inputAJ != null) km.chatInputField.inputAJ.value = text; } catch { }
                 try { if (km.chatInputField?.input != null) km.chatInputField.input.value = text; } catch { }
                 try { if (km.chatInputField?.inputAJ != null && km.chatInputField.inputAJ.label != null) km.chatInputField.inputAJ.label.text = text; } catch { }
@@ -258,7 +244,6 @@ namespace PlayWild.Features.World
 
                 km.OnChatInputChanged(Il2Cpp.CommunicationMethod.Chat);
                 Il2Cpp.KeyboardManager.SimulateSpecialKeyButtonPress(Il2Cpp.KeyboardKeyCommand.Return);
-                // Ensure submission via direct API as well (mirrors Enter behavior internally)
                 km.OnSubmitChat();
                 return true;
             }
@@ -282,7 +267,6 @@ namespace PlayWild.Features.World
                 if (!isOpen || km.chatInputField == null)
                 {
                     try { Il2Cpp.KeyboardManager.layoutType = Il2Cpp.KeyboardType.Chat; } catch { }
-                    // As an extra nudge use UI chat triggers where available
                     try { Il2Cpp.DragonDungeonUI.Chat("", Il2Cpp.ChatType.Safe); } catch { }
                     km.Open(null);
                     return false;
@@ -296,5 +280,3 @@ namespace PlayWild.Features.World
         }
     }
 }
-
-

@@ -1,20 +1,21 @@
 using UnityEngine;
 using MelonLoader;
 using PlayWild.Utils;
+using PlayWild.Interface;
 
 namespace PlayWild.Features.Base
 {
     public abstract class BaseFeature : IFeature
     {
         public abstract string Name { get; }
-        
+
         private bool _isEnabled = false;
         private bool _isInitialized = false;
-        
-        public virtual bool IsEnabled 
-        { 
+
+        public virtual bool IsEnabled
+        {
             get => _isEnabled;
-            set 
+            set
             {
                 if (_isEnabled != value)
                 {
@@ -23,69 +24,119 @@ namespace PlayWild.Features.Base
                         OnEnable();
                     else
                         OnDisable();
-                    
-                    // Save to persistence
+
                     if (_isInitialized)
                     {
                         PersistenceManager.SetFeatureEnabled(GetPersistenceKey(), value);
                     }
-                        
+
                     MelonLogger.Msg($"[WildBerry] {Name}: {(value ? "ENABLED" : "DISABLED")}");
                 }
             }
         }
 
-        public virtual void Initialize() 
+        public virtual void Initialize()
         {
-            // Load persisted state
             _isEnabled = PersistenceManager.GetFeatureEnabled(GetPersistenceKey(), false);
             _isInitialized = true;
-            
-            // Call OnEnable if the feature was persisted as enabled
+
             if (_isEnabled)
             {
                 OnEnable();
             }
         }
+
         public virtual void OnUpdate() { }
         public abstract void OnGUI(Rect area);
         public virtual void OnEnable() { }
         public virtual void OnDisable() { }
 
-        protected void DrawCheckbox(Rect position, bool currentValue, string label, System.Action<bool> onValueChanged)
+        protected void DrawToggle(Rect position, bool currentValue, string label, System.Action<bool> onValueChanged)
         {
-            // Checkbox border
+            Rect trackRect = new Rect(position.x, position.y, WildBerryTheme.ToggleWidth, WildBerryTheme.ToggleHeight);
+
+            GUI.color = currentValue ? WildBerryTheme.ToggleOn : WildBerryTheme.ToggleOff;
+            GUI.DrawTexture(trackRect, WildBerryTheme.ToggleTrackTex, ScaleMode.StretchToFill);
+
+            float knobX = currentValue
+                ? trackRect.x + trackRect.width - WildBerryTheme.ToggleKnobSize - WildBerryTheme.ToggleKnobPad
+                : trackRect.x + WildBerryTheme.ToggleKnobPad;
+            float knobY = trackRect.y + (trackRect.height - WildBerryTheme.ToggleKnobSize) / 2f;
+            Rect knobRect = new Rect(knobX, knobY, WildBerryTheme.ToggleKnobSize, WildBerryTheme.ToggleKnobSize);
+
+            GUI.color = WildBerryTheme.ToggleKnobColor;
+            GUI.DrawTexture(knobRect, WildBerryTheme.CircleDot, ScaleMode.ScaleToFit);
+
             GUI.color = Color.white;
-            GUI.DrawTexture(position, Texture2D.whiteTexture);
-            
-            // Checkbox inner area
-            Rect innerRect = new Rect(position.x + 2, position.y + 2, 12, 12);
-            
-            // Set fill color based on state
-            if (currentValue)
-            {
-                GUI.color = Color.white; // White fill when enabled
-            }
-            else
-            {
-                GUI.color = Color.black; // Black fill when disabled  
-            }
-            
-            // Draw the inner fill
-            GUI.DrawTexture(innerRect, Texture2D.whiteTexture);
-            
-            // Reset color for button
-            GUI.color = Color.white;
-            
-            // Invisible clickable button over entire checkbox
-            if (GUI.Button(position, "", GUIStyle.none))
+            Rect labelRect = new Rect(
+                trackRect.x + WildBerryTheme.ToggleWidth + 10,
+                trackRect.y,
+                position.width - WildBerryTheme.ToggleWidth - 10,
+                WildBerryTheme.ToggleHeight);
+            GUI.Label(labelRect, label, WildBerryTheme.FeatureNameStyle);
+
+            Rect clickArea = new Rect(position.x, position.y, position.width, WildBerryTheme.ToggleHeight);
+            if (GUI.Button(clickArea, "", GUIStyle.none))
             {
                 onValueChanged(!currentValue);
             }
-            
-            // Label next to checkbox
+        }
+
+        protected void DrawSubToggle(Rect position, bool currentValue, string label, System.Action<bool> onValueChanged)
+        {
+            Rect trackRect = new Rect(position.x, position.y, WildBerryTheme.SubToggleWidth, WildBerryTheme.SubToggleHeight);
+
+            GUI.color = currentValue ? WildBerryTheme.ToggleOn : WildBerryTheme.ToggleOff;
+            GUI.DrawTexture(trackRect, WildBerryTheme.ToggleTrackTex, ScaleMode.StretchToFill);
+
+            float knobX = currentValue
+                ? trackRect.x + trackRect.width - WildBerryTheme.SubToggleKnobSize - WildBerryTheme.ToggleKnobPad
+                : trackRect.x + WildBerryTheme.ToggleKnobPad;
+            float knobY = trackRect.y + (trackRect.height - WildBerryTheme.SubToggleKnobSize) / 2f;
+            Rect knobRect = new Rect(knobX, knobY, WildBerryTheme.SubToggleKnobSize, WildBerryTheme.SubToggleKnobSize);
+
+            GUI.color = WildBerryTheme.ToggleKnobColor;
+            GUI.DrawTexture(knobRect, WildBerryTheme.CircleDot, ScaleMode.ScaleToFit);
+
             GUI.color = Color.white;
-            GUI.Label(new Rect(position.x + 25, position.y - 2, 200, 20), label);
+            Rect labelRect = new Rect(
+                trackRect.x + WildBerryTheme.SubToggleWidth + 8,
+                trackRect.y,
+                position.width - WildBerryTheme.SubToggleWidth - 8,
+                WildBerryTheme.SubToggleHeight);
+            GUI.Label(labelRect, label, WildBerryTheme.LabelStyle);
+
+            Rect clickArea = new Rect(position.x, position.y, position.width, WildBerryTheme.SubToggleHeight);
+            if (GUI.Button(clickArea, "", GUIStyle.none))
+            {
+                onValueChanged(!currentValue);
+            }
+        }
+
+        protected string DrawStyledTextField(Rect position, string currentText)
+        {
+            return GUI.TextField(position, currentText, WildBerryTheme.TextFieldStyle);
+        }
+
+        protected string DrawStyledTextArea(Rect position, string currentText)
+        {
+            return GUI.TextArea(position, currentText, WildBerryTheme.TextAreaStyle);
+        }
+
+        protected bool DrawStyledButton(Rect position, string label)
+        {
+            return GUI.Button(position, label, WildBerryTheme.ButtonStyle);
+        }
+
+        protected void DrawStatusLabel(Rect position, string text, Color color)
+        {
+            var style = new GUIStyle(WildBerryTheme.StatusStyle) { normal = { textColor = color } };
+            GUI.Label(position, text, style);
+        }
+
+        protected void DrawLabel(Rect position, string text)
+        {
+            GUI.Label(position, text, WildBerryTheme.LabelStyle);
         }
 
         protected string GetGameObjectPath(GameObject obj)
@@ -107,7 +158,6 @@ namespace PlayWild.Features.Base
             }
         }
 
-        // Persistence helpers
         protected virtual string GetPersistenceKey()
         {
             return Name.Replace(" ", "_").Replace("+", "_");
@@ -126,17 +176,13 @@ namespace PlayWild.Features.Base
             }
         }
 
-        // Default dynamic height implementation
         public virtual float GetDynamicHeight()
         {
-            // Standard height: checkbox (25) + content when enabled
             if (!IsEnabled)
             {
-                return 25f; // Just checkbox height when disabled
+                return 25f;
             }
-            
-            // Default enabled height for most simple features
-            return 50f; // Checkbox + basic content
+            return 50f;
         }
     }
 }

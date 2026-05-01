@@ -1,5 +1,6 @@
 using UnityEngine;
 using PlayWild.Features.Base;
+using PlayWild.Interface;
 using MelonLoader;
 using System;
 using System.Reflection;
@@ -12,18 +13,18 @@ namespace PlayWild.Features.Player
     public class DeviceIDSpoofing : BaseFeature
     {
         public override string Name => "Device ID Spoofing";
-        
+
         internal string spoofedDeviceId;
         internal string spoofedDeviceName;
         internal string spoofedDeviceModel;
         internal string spoofedUUID;
-        
+
         private string originalDeviceId;
         private string originalDeviceName;
         private string originalDeviceModel;
-        private string originalUUID;
-        
+
         internal bool isSpoofed = false;
+        private bool harmonyPatchFailed = false;
         private static HarmonyLib.Harmony harmonyInstance;
         internal static DeviceIDSpoofing currentInstance;
 
@@ -32,26 +33,25 @@ namespace PlayWild.Features.Player
             try
             {
                 MelonLogger.Msg("[WildBerry] Device ID Spoofing: Initializing...");
-                
-                // Store original values first
+
                 StoreOriginalValues();
-                
-                // Generate new spoofed values
                 GenerateNewSpoofedValues();
-                
-                // Set up Harmony patches
-                ApplyHarmonyPatches();
-                
-                // Apply CodeStage spoofing (if present)
+
+                if (!ApplyHarmonyPatches())
+                {
+                    harmonyPatchFailed = true;
+                    MelonLogger.Warning("[WildBerry] Device ID Spoofing: Harmony patching failed, using CodeStage-only spoofing");
+                }
+
                 SpoofCodeStageDeviceId();
-                
+
                 isSpoofed = true;
-                
                 MelonLogger.Msg("[WildBerry] Device ID Spoofing: ENABLED with randomized values");
             }
             catch (Exception ex)
             {
                 MelonLogger.Error($"[WildBerry] Error enabling Device ID Spoofing: {ex.Message}");
+                isSpoofed = false;
             }
         }
 
@@ -64,7 +64,9 @@ namespace PlayWild.Features.Player
                     RemoveHarmonyPatches();
                     RestoreOriginalDeviceInfo();
                     currentInstance = null;
-                    MelonLogger.Msg("[WildBerry] Device ID Spoofing: DISABLED - restored original values");
+                    isSpoofed = false;
+                    harmonyPatchFailed = false;
+                    MelonLogger.Msg("[WildBerry] Device ID Spoofing: DISABLED, restored original values");
                 }
             }
             catch (Exception ex)
@@ -75,48 +77,41 @@ namespace PlayWild.Features.Player
 
         public override void OnUpdate()
         {
-            // No periodic updates needed - spoofing is applied once on enable
         }
 
         public override void OnGUI(Rect area)
         {
             float yOffset = 0;
-            
-            // Main toggle
-            DrawCheckbox(new Rect(area.x, area.y + yOffset, 16, 16), IsEnabled, Name, 
+
+            DrawToggle(new Rect(area.x, area.y + yOffset, area.width, WildBerryTheme.ToggleHeight), IsEnabled, Name,
                 (value) => { IsEnabled = value; });
             yOffset += 25;
 
             if (IsEnabled)
             {
-                GUI.color = Color.white;
-                
-                // Status display
                 if (isSpoofed)
                 {
-                    GUI.color = Color.green;
-                    GUI.Label(new Rect(area.x + 5, area.y + yOffset, 250, 20), "✓ Device ID/UUID spoofed");
+                    Color statusColor = harmonyPatchFailed ? Color.yellow : Color.green;
+                    string statusText = harmonyPatchFailed ? "Partial spoof (CodeStage only)" : "Device ID/UUID spoofed";
+                    DrawStatusLabel(new Rect(area.x + 5, area.y + yOffset, 250, 20), statusText, statusColor);
                     yOffset += 20;
-                    
-                    GUI.color = Color.cyan;
-                    GUI.Label(new Rect(area.x + 5, area.y + yOffset, 250, 18), $"Device ID: {spoofedDeviceId?.Substring(0, Math.Min(12, spoofedDeviceId.Length))}...");
+
+                    DrawStatusLabel(new Rect(area.x + 5, area.y + yOffset, 250, 18), $"Device ID: {spoofedDeviceId?.Substring(0, Math.Min(12, spoofedDeviceId.Length))}...", Color.cyan);
                     yOffset += 18;
-                    
-                    GUI.Label(new Rect(area.x + 5, area.y + yOffset, 250, 18), $"Device Name: {spoofedDeviceName}");
+
+                    DrawStatusLabel(new Rect(area.x + 5, area.y + yOffset, 250, 18), $"Device Name: {spoofedDeviceName}", Color.cyan);
                     yOffset += 18;
-                    
-                    GUI.Label(new Rect(area.x + 5, area.y + yOffset, 250, 18), $"UUID: {spoofedUUID?.Substring(0, Math.Min(8, spoofedUUID.Length))}...");
+
+                    DrawStatusLabel(new Rect(area.x + 5, area.y + yOffset, 250, 18), $"UUID: {spoofedUUID?.Substring(0, Math.Min(8, spoofedUUID.Length))}...", Color.cyan);
                     yOffset += 18;
                 }
                 else
                 {
-                    GUI.color = Color.yellow;
-                    GUI.Label(new Rect(area.x + 5, area.y + yOffset, 250, 20), "⚠ Initializing spoofing...");
+                    DrawStatusLabel(new Rect(area.x + 5, area.y + yOffset, 250, 20), "Initializing spoofing...", Color.yellow);
                     yOffset += 20;
                 }
-                
-                GUI.color = Color.white;
-                GUI.Label(new Rect(area.x + 5, area.y + yOffset, 250, 20), "New random device ID each game session");
+
+                DrawLabel(new Rect(area.x + 5, area.y + yOffset, 250, 20), "New random device ID each game session");
             }
         }
 
@@ -124,17 +119,9 @@ namespace PlayWild.Features.Player
         {
             try
             {
-                // Store original Unity SystemInfo values
                 originalDeviceId = SystemInfo.deviceUniqueIdentifier;
                 originalDeviceName = SystemInfo.deviceName;
                 originalDeviceModel = SystemInfo.deviceModel;
-                
-                MelonLogger.Msg($"[WildBerry] Stored original Device ID: {originalDeviceId}");
-                MelonLogger.Msg($"[WildBerry] Stored original Device Name: {originalDeviceName}");
-                MelonLogger.Msg($"[WildBerry] Stored original Device Model: {originalDeviceModel}");
-                
-                // Generate a placeholder UUID for logging purposes
-                originalUUID = Guid.NewGuid().ToString();
             }
             catch (Exception ex)
             {
@@ -144,27 +131,18 @@ namespace PlayWild.Features.Player
 
         private void GenerateNewSpoofedValues()
         {
-            // Generate random device ID (hex string like Unity typically uses)
             spoofedDeviceId = GenerateRandomHexString(32);
-            
-            // Generate random device name
+
             string[] deviceNames = { "SpoofDevice", "TestDevice", "RandomDevice", "FakeDevice", "MockDevice" };
             spoofedDeviceName = deviceNames[UnityEngine.Random.Range(0, deviceNames.Length)] + UnityEngine.Random.Range(1000, 9999);
-            
-            // Generate random device model
+
             string[] deviceModels = { "SpoofModel", "TestModel", "RandomModel", "FakeModel", "MockModel" };
             spoofedDeviceModel = deviceModels[UnityEngine.Random.Range(0, deviceModels.Length)] + " v" + UnityEngine.Random.Range(1, 10);
-            
-            // Generate random UUID
-            spoofedUUID = GenerateRandomUUID();
-            
-            MelonLogger.Msg($"[WildBerry] Generated new spoofed Device ID: {spoofedDeviceId}");
-            MelonLogger.Msg($"[WildBerry] Generated new spoofed Device Name: {spoofedDeviceName}");
-            MelonLogger.Msg($"[WildBerry] Generated new spoofed Device Model: {spoofedDeviceModel}");
-            MelonLogger.Msg($"[WildBerry] Generated new spoofed UUID: {spoofedUUID}");
+
+            spoofedUUID = Guid.NewGuid().ToString();
         }
 
-        private void ApplyHarmonyPatches()
+        private bool ApplyHarmonyPatches()
         {
             try
             {
@@ -175,41 +153,57 @@ namespace PlayWild.Features.Player
 
                 currentInstance = this;
 
-                // Patch Unity SystemInfo properties
                 var systemInfoType = typeof(SystemInfo);
-                
-                // Patch deviceUniqueIdentifier getter
+
                 var deviceUniqueIdentifierMethod = systemInfoType.GetProperty("deviceUniqueIdentifier")?.GetGetMethod();
                 if (deviceUniqueIdentifierMethod != null)
                 {
-                    harmonyInstance.Patch(deviceUniqueIdentifierMethod, 
-                        prefix: new HarmonyMethod(typeof(SystemInfoPatches), nameof(SystemInfoPatches.DeviceUniqueIdentifier_Prefix)));
-                    MelonLogger.Msg("[WildBerry] Patched SystemInfo.deviceUniqueIdentifier");
+                    try
+                    {
+                        harmonyInstance.Patch(deviceUniqueIdentifierMethod,
+                            prefix: new HarmonyMethod(typeof(SystemInfoPatches), nameof(SystemInfoPatches.DeviceUniqueIdentifier_Prefix)));
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning($"[WildBerry] Failed to patch deviceUniqueIdentifier: {ex.Message}");
+                        return false;
+                    }
                 }
 
-                // Patch deviceName getter
                 var deviceNameMethod = systemInfoType.GetProperty("deviceName")?.GetGetMethod();
                 if (deviceNameMethod != null)
                 {
-                    harmonyInstance.Patch(deviceNameMethod, 
-                        prefix: new HarmonyMethod(typeof(SystemInfoPatches), nameof(SystemInfoPatches.DeviceName_Prefix)));
-                    MelonLogger.Msg("[WildBerry] Patched SystemInfo.deviceName");
+                    try
+                    {
+                        harmonyInstance.Patch(deviceNameMethod,
+                            prefix: new HarmonyMethod(typeof(SystemInfoPatches), nameof(SystemInfoPatches.DeviceName_Prefix)));
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning($"[WildBerry] Failed to patch deviceName: {ex.Message}");
+                    }
                 }
 
-                // Patch deviceModel getter
                 var deviceModelMethod = systemInfoType.GetProperty("deviceModel")?.GetGetMethod();
                 if (deviceModelMethod != null)
                 {
-                    harmonyInstance.Patch(deviceModelMethod, 
-                        prefix: new HarmonyMethod(typeof(SystemInfoPatches), nameof(SystemInfoPatches.DeviceModel_Prefix)));
-                    MelonLogger.Msg("[WildBerry] Patched SystemInfo.deviceModel");
+                    try
+                    {
+                        harmonyInstance.Patch(deviceModelMethod,
+                            prefix: new HarmonyMethod(typeof(SystemInfoPatches), nameof(SystemInfoPatches.DeviceModel_Prefix)));
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning($"[WildBerry] Failed to patch deviceModel: {ex.Message}");
+                    }
                 }
 
-                MelonLogger.Msg("[WildBerry] Harmony patches applied successfully");
+                return true;
             }
             catch (Exception ex)
             {
                 MelonLogger.Error($"[WildBerry] Error applying Harmony patches: {ex.Message}");
+                return false;
             }
         }
 
@@ -220,7 +214,6 @@ namespace PlayWild.Features.Player
                 if (harmonyInstance != null)
                 {
                     harmonyInstance.UnpatchSelf();
-                    MelonLogger.Msg("[WildBerry] Harmony patches removed");
                 }
             }
             catch (Exception ex)
@@ -233,45 +226,58 @@ namespace PlayWild.Features.Player
         {
             try
             {
-                // Look for CodeStage AntiCheat ObscuredPrefs DeviceId
                 var assemblies = AppDomain.CurrentDomain.GetAssemblies();
                 foreach (var assembly in assemblies)
                 {
-                    var obscuredPrefsType = assembly.GetType("CodeStage.AntiCheat.Storage.ObscuredPrefs");
-                    if (obscuredPrefsType != null)
+                    Type obscuredPrefsType = null;
+                    try
                     {
-                        // Try to set DeviceId property
+                        obscuredPrefsType = assembly.GetType("CodeStage.AntiCheat.Storage.ObscuredPrefs");
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    if (obscuredPrefsType == null) continue;
+
+                    try
+                    {
                         var deviceIdProperty = obscuredPrefsType.GetProperty("DeviceId");
                         if (deviceIdProperty != null && deviceIdProperty.CanWrite)
                         {
                             deviceIdProperty.SetValue(null, spoofedDeviceId);
-                            MelonLogger.Msg($"[WildBerry] Spoofed CodeStage DeviceId: {spoofedDeviceId}");
                         }
-                        
-                        // Try to find and modify internal device id field
+                    }
+                    catch { }
+
+                    try
+                    {
                         var deviceIdField = obscuredPrefsType.GetField("deviceId", BindingFlags.NonPublic | BindingFlags.Static);
                         if (deviceIdField != null)
                         {
                             deviceIdField.SetValue(null, spoofedDeviceId);
-                            MelonLogger.Msg($"[WildBerry] Spoofed CodeStage internal deviceId field: {spoofedDeviceId}");
                         }
-                        
-                        // Force recalculation of device id hash
+                    }
+                    catch { }
+
+                    try
+                    {
                         var deviceIdHashField = obscuredPrefsType.GetField("deviceIdHash", BindingFlags.NonPublic | BindingFlags.Static);
                         if (deviceIdHashField != null)
                         {
                             uint hash = (uint)spoofedDeviceId.GetHashCode();
                             deviceIdHashField.SetValue(null, hash);
-                            MelonLogger.Msg($"[WildBerry] Updated CodeStage deviceIdHash: {hash}");
                         }
-                        
-                        break;
                     }
+                    catch { }
+
+                    break;
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[WildBerry] Error spoofing CodeStage DeviceId: {ex.Message}");
+                MelonLogger.Warning($"[WildBerry] Error spoofing CodeStage DeviceId: {ex.Message}");
             }
         }
 
@@ -279,12 +285,22 @@ namespace PlayWild.Features.Player
         {
             try
             {
-                // Restore CodeStage DeviceId if possible
                 var assemblies = AppDomain.CurrentDomain.GetAssemblies();
                 foreach (var assembly in assemblies)
                 {
-                    var obscuredPrefsType = assembly.GetType("CodeStage.AntiCheat.Storage.ObscuredPrefs");
-                    if (obscuredPrefsType != null)
+                    Type obscuredPrefsType = null;
+                    try
+                    {
+                        obscuredPrefsType = assembly.GetType("CodeStage.AntiCheat.Storage.ObscuredPrefs");
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    if (obscuredPrefsType == null) continue;
+
+                    try
                     {
                         var deviceIdProperty = obscuredPrefsType.GetProperty("DeviceId");
                         if (deviceIdProperty != null && deviceIdProperty.CanWrite)
@@ -292,10 +308,10 @@ namespace PlayWild.Features.Player
                             deviceIdProperty.SetValue(null, originalDeviceId);
                         }
                     }
-                }
+                    catch { }
 
-                isSpoofed = false;
-                MelonLogger.Msg("[WildBerry] Restored original device info");
+                    break;
+                }
             }
             catch (Exception ex)
             {
@@ -306,41 +322,35 @@ namespace PlayWild.Features.Player
         private string GenerateRandomHexString(int length)
         {
             var bytes = new byte[length / 2];
-            System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
+            RandomNumberGenerator.Fill(bytes);
             StringBuilder sb = new StringBuilder(length);
             foreach (byte b in bytes)
                 sb.Append(b.ToString("x2"));
             return sb.ToString();
         }
 
-        private string GenerateRandomUUID()
-        {
-            return Guid.NewGuid().ToString();
-        }
-
         public override float GetDynamicHeight()
         {
-            if (!IsEnabled) return 25f; // Just checkbox
-            
-            float baseHeight = 25f; // Main toggle
-            
+            if (!IsEnabled) return 25f;
+
+            float baseHeight = 25f;
+
             if (isSpoofed)
             {
-                baseHeight += 20f; // Status message
-                baseHeight += 18f * 3; // Device ID, Name, UUID (18px each)
-                baseHeight += 20f; // Description
+                baseHeight += 20f;
+                baseHeight += 18f * 3;
+                baseHeight += 20f;
             }
             else
             {
-                baseHeight += 20f; // Initializing message
-                baseHeight += 20f; // Description
+                baseHeight += 20f;
+                baseHeight += 20f;
             }
-            
+
             return baseHeight;
         }
     }
 
-    // Harmony patch classes for SystemInfo spoofing
     public static class SystemInfoPatches
     {
         public static bool DeviceUniqueIdentifier_Prefix(ref string __result)
@@ -348,9 +358,9 @@ namespace PlayWild.Features.Player
             if (DeviceIDSpoofing.currentInstance != null && DeviceIDSpoofing.currentInstance.isSpoofed)
             {
                 __result = DeviceIDSpoofing.currentInstance.spoofedDeviceId;
-                return false; // Skip original method
+                return false;
             }
-            return true; // Use original method
+            return true;
         }
 
         public static bool DeviceName_Prefix(ref string __result)
@@ -358,9 +368,9 @@ namespace PlayWild.Features.Player
             if (DeviceIDSpoofing.currentInstance != null && DeviceIDSpoofing.currentInstance.isSpoofed)
             {
                 __result = DeviceIDSpoofing.currentInstance.spoofedDeviceName;
-                return false; // Skip original method
+                return false;
             }
-            return true; // Use original method
+            return true;
         }
 
         public static bool DeviceModel_Prefix(ref string __result)
@@ -368,9 +378,9 @@ namespace PlayWild.Features.Player
             if (DeviceIDSpoofing.currentInstance != null && DeviceIDSpoofing.currentInstance.isSpoofed)
             {
                 __result = DeviceIDSpoofing.currentInstance.spoofedDeviceModel;
-                return false; // Skip original method
+                return false;
             }
-            return true; // Use original method
+            return true;
         }
     }
 }

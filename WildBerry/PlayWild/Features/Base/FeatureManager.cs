@@ -4,6 +4,7 @@ using PlayWild.Features.Player;
 using PlayWild.Features.World;
 using PlayWild.Features.Minigames;
 using PlayWild.Utils;
+using PlayWild.Interface;
 
 namespace PlayWild.Features.Base
 {
@@ -15,32 +16,33 @@ namespace PlayWild.Features.Base
 
         public void Initialize()
         {
-            // Initialize persistence system first
             PersistenceManager.LoadConfig();
-            // Initialize Player Features
+
             _playerFeatures.Add(new SpeedHack());
             _playerFeatures.Add(new SizeHack());
             _playerFeatures.Add(new FlyingMode());
+            _playerFeatures.Add(new PlayerTeleport());
             _playerFeatures.Add(new PremiumMember());
+            _playerFeatures.Add(new BypassMembershipLimit());
             _playerFeatures.Add(new DeviceIDSpoofing());
             _playerFeatures.Add(new AntiAFK());
 
-            // Initialize World Features
             _worldFeatures.Add(new AutoNocturnal());
             _worldFeatures.Add(new AutoFact());
             _worldFeatures.Add(new TimeHack());
             _worldFeatures.Add(new UsernameLogger());
             _worldFeatures.Add(new AutoAdvertising());
+            _worldFeatures.Add(new ExpeditionBypass());
+            _worldFeatures.Add(new RoomInfo());
 
-            // Initialize Minigame Features
             _minigameFeatures.Add(new AlwaysShowDigRewards());
             _minigameFeatures.Add(new AutoCompleteHedgehogRoll());
             _minigameFeatures.Add(new MassiveBallBlockBreak());
             _minigameFeatures.Add(new PestControl());
             _minigameFeatures.Add(new PhantomImmunity());
             _minigameFeatures.Add(new PhantomDimension());
+            _minigameFeatures.Add(new TreasureHunterSolver());
 
-            // Initialize all features
             InitializeFeatures(_playerFeatures);
             InitializeFeatures(_worldFeatures);
             InitializeFeatures(_minigameFeatures);
@@ -74,39 +76,45 @@ namespace PlayWild.Features.Base
 
         public void DrawPlayerTab(Rect area)
         {
-            DrawFeaturesTab(_playerFeatures, area);
+            DrawFeaturesTab(_playerFeatures, area, WildBerryTheme.PlayerDot);
         }
 
         public void DrawWorldTab(Rect area)
         {
-            DrawFeaturesTab(_worldFeatures, area);
+            DrawFeaturesTab(_worldFeatures, area, WildBerryTheme.WorldDot);
         }
 
         public void DrawMinigamesTab(Rect area)
         {
-            DrawFeaturesTab(_minigameFeatures, area);
+            DrawFeaturesTab(_minigameFeatures, area, WildBerryTheme.MinigamesDot);
         }
 
-        private void DrawFeaturesTab(List<IFeature> features, Rect area)
+        private void DrawFeaturesTab(List<IFeature> features, Rect area, Color dotColor)
         {
             float yOffset = 0;
             foreach (var feature in features)
             {
-                // Calculate dynamic height based on feature type
-                float featureHeight = GetFeatureHeight(feature);
-                
-                Rect featureRect = new Rect(area.x, area.y + yOffset, area.width, featureHeight);
-                feature.OnGUI(featureRect);
-                
-                // Add spacing between features
-                yOffset += featureHeight + 10;
-            }
-        }
+                float featureContentHeight = feature.GetDynamicHeight();
+                float cardHeight = featureContentHeight + WildBerryTheme.CardPadInner * 2;
 
-        private float GetFeatureHeight(IFeature feature)
-        {
-            // Use GetDynamicHeight() method for all features to ensure consistent behavior
-            return feature.GetDynamicHeight();
+                Rect cardRect = new Rect(area.x, area.y + yOffset, area.width, cardHeight);
+                Rect innerRect = WildBerryTheme.DrawCard(cardRect);
+
+                float dotY = innerRect.y + (WildBerryTheme.ToggleHeight - WildBerryTheme.DotSize) / 2f;
+                WildBerryTheme.DrawDot(
+                    new Rect(innerRect.x, dotY, WildBerryTheme.DotSize, WildBerryTheme.DotSize),
+                    dotColor);
+
+                Rect featureRect = new Rect(
+                    innerRect.x + WildBerryTheme.DotSize + WildBerryTheme.DotMargin,
+                    innerRect.y,
+                    innerRect.width - WildBerryTheme.DotSize - WildBerryTheme.DotMargin,
+                    featureContentHeight);
+
+                feature.OnGUI(featureRect);
+
+                yOffset += cardHeight + WildBerryTheme.CardPadOuter;
+            }
         }
 
         public float GetTabContentHeight(string tabName)
@@ -130,8 +138,9 @@ namespace PlayWild.Features.Base
             float totalHeight = 0;
             foreach (var feature in features)
             {
-                float featureHeight = GetFeatureHeight(feature);
-                totalHeight += featureHeight + 10; // Add spacing
+                float featureContentHeight = feature.GetDynamicHeight();
+                float cardHeight = featureContentHeight + WildBerryTheme.CardPadInner * 2;
+                totalHeight += cardHeight + WildBerryTheme.CardPadOuter;
             }
 
             return totalHeight;

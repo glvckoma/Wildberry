@@ -1,5 +1,6 @@
 using UnityEngine;
 using PlayWild.Features.Base;
+using PlayWild.Interface;
 using PlayWild.Utils;
 using MelonLoader;
 
@@ -8,13 +9,23 @@ namespace PlayWild.Features.Player
     public class FlyingMode : BaseFeature
     {
         public override string Name => "Flying Mode";
-        
+
         private float speedMultiplier = 3.0f;
+        private string speedInputText = "3.0";
         private bool isFlying = false;
+        private bool noclip = false;
+        private Collider[] disabledColliders;
+
+        public override void Initialize()
+        {
+            base.Initialize();
+            speedMultiplier = GetPersistedValue("flySpeed", 3.0f);
+            speedInputText = speedMultiplier.ToString();
+            noclip = GetPersistedValue("noclip", false);
+        }
 
         public override void OnDisable()
         {
-            // Restore gravity when disabled
             GameObject player = PlayerFinder.FindPlayerObject();
             if (player != null)
             {
@@ -24,6 +35,7 @@ namespace PlayWild.Features.Player
                     rigidbody.useGravity = true;
                 }
             }
+            RestoreColliders();
             isFlying = false;
         }
 
@@ -35,29 +47,48 @@ namespace PlayWild.Features.Player
 
         public override void OnGUI(Rect area)
         {
-            DrawCheckbox(new Rect(area.x, area.y, 16, 16), IsEnabled, Name, 
+            DrawToggle(new Rect(area.x, area.y, area.width, WildBerryTheme.ToggleHeight), IsEnabled, Name,
                 (value) => { IsEnabled = value; });
-            
+
             if (IsEnabled)
             {
                 float yOffset = 25;
-                GUI.color = Color.white;
-                
-                // Only show flying status when active
+
+                DrawLabel(new Rect(area.x + 5, area.y + yOffset, 60, 20), "Speed:");
+                string newSpeedText = DrawStyledTextField(new Rect(area.x + 65, area.y + yOffset, 50, 20), speedInputText);
+                if (newSpeedText != speedInputText)
+                {
+                    speedInputText = newSpeedText;
+                    if (float.TryParse(speedInputText, out float newSpeed) && newSpeed > 0)
+                    {
+                        speedMultiplier = newSpeed;
+                        SetPersistedValue("flySpeed", speedMultiplier);
+                    }
+                }
+                yOffset += 22;
+
+                DrawSubToggle(new Rect(area.x + 5, area.y + yOffset, area.width - 5, WildBerryTheme.SubToggleHeight), noclip, "Noclip",
+                    (value) =>
+                    {
+                        noclip = value;
+                        SetPersistedValue("noclip", value);
+                        if (!value) RestoreColliders();
+                    });
+                yOffset += 22;
+
                 if (isFlying)
                 {
-                    GUI.Label(new Rect(area.x + 5, area.y + yOffset, 200, 20), "Flying: ON");
-                    yOffset += 20;
+                    DrawStatusLabel(new Rect(area.x + 5, area.y + yOffset, 200, 20), "Flying: ON", Color.green);
                 }
-                
-                // Control instructions
-                GUI.Label(new Rect(area.x + 5, area.y + yOffset, 200, 20), "Controls:");
+                else
+                {
+                    DrawStatusLabel(new Rect(area.x + 5, area.y + yOffset, 200, 20), "Flying: OFF", Color.gray);
+                }
                 yOffset += 20;
-                GUI.Label(new Rect(area.x + 5, area.y + yOffset, 200, 20), "Space: Toggle flying");
-                yOffset += 20;
-                GUI.Label(new Rect(area.x + 5, area.y + yOffset, 200, 20), "WASD: Move");
-                yOffset += 20;
-                GUI.Label(new Rect(area.x + 5, area.y + yOffset, 200, 20), "Shift: Up, Ctrl: Down");
+
+                DrawLabel(new Rect(area.x + 5, area.y + yOffset, 200, 20), "Space: Toggle | WASD: Move");
+                yOffset += 18;
+                DrawLabel(new Rect(area.x + 5, area.y + yOffset, 200, 20), "Shift: Up | Ctrl: Down");
             }
         }
 
@@ -68,14 +99,14 @@ namespace PlayWild.Features.Player
                 GameObject player = PlayerFinder.FindPlayerObject();
                 if (player == null) return;
 
-                // Toggle flying with Space key
                 if (Input.GetKeyDown(KeyCode.Space))
                 {
                     isFlying = !isFlying;
-                    MelonLogger.Msg($"[WildBerry] Flying {(isFlying ? "enabled" : "disabled")}! Use WASD + Shift/Ctrl for movement");
+                    if (isFlying && noclip) DisableColliders(player);
+                    if (!isFlying) RestoreColliders();
+                    MelonLogger.Msg($"[WildBerry] Flying {(isFlying ? "enabled" : "disabled")}");
                 }
 
-                // Flying controls
                 if (isFlying)
                 {
                     Vector3 flyMovement = Vector3.zero;
@@ -86,10 +117,10 @@ namespace PlayWild.Features.Player
                     if (Input.GetKey(KeyCode.LeftShift)) flyMovement += Vector3.up;
                     if (Input.GetKey(KeyCode.LeftControl)) flyMovement += Vector3.down;
 
+                    var rigidbody = player.GetComponent<Rigidbody>();
+
                     if (flyMovement != Vector3.zero)
                     {
-                        // Try multiple movement methods for flying
-                        var rigidbody = player.GetComponent<Rigidbody>();
                         if (rigidbody != null)
                         {
                             rigidbody.useGravity = false;
@@ -104,14 +135,11 @@ namespace PlayWild.Features.Player
                             return;
                         }
 
-                        // Direct transform movement as fallback
                         player.transform.position += flyMovement * speedMultiplier * Time.deltaTime * 5f;
                     }
                     else
                     {
-                        // Stop movement when no input
-                        var rigidbody = player.GetComponent<Rigidbody>();
-                        if (rigidbody != null && isFlying)
+                        if (rigidbody != null)
                         {
                             rigidbody.velocity = Vector3.zero;
                             rigidbody.useGravity = false;
@@ -120,7 +148,6 @@ namespace PlayWild.Features.Player
                 }
                 else
                 {
-                    // Restore gravity when not flying
                     var rigidbody = player.GetComponent<Rigidbody>();
                     if (rigidbody != null)
                     {
@@ -134,17 +161,39 @@ namespace PlayWild.Features.Player
             }
         }
 
+        private void DisableColliders(GameObject player)
+        {
+            try
+            {
+                disabledColliders = player.GetComponentsInChildren<Collider>();
+                foreach (var col in disabledColliders)
+                {
+                    if (col != null) col.enabled = false;
+                }
+            }
+            catch { }
+        }
+
+        private void RestoreColliders()
+        {
+            try
+            {
+                if (disabledColliders != null)
+                {
+                    foreach (var col in disabledColliders)
+                    {
+                        if (col != null) col.enabled = true;
+                    }
+                    disabledColliders = null;
+                }
+            }
+            catch { }
+        }
+
         public override float GetDynamicHeight()
         {
-            if (!IsEnabled) return 25f; // Just checkbox
-            
-            // Base checkbox (25) + "Controls:" label (20) + 4 control lines (20*4) + optional flying status (20 when active)
-            float baseHeight = 25f + 20f + (20f * 4); // = 105px
-            
-            // Add flying status height only when actually flying
-            if (isFlying) baseHeight += 20f;
-            
-            return baseHeight;
+            if (!IsEnabled) return 25f;
+            return 135f;
         }
     }
 }

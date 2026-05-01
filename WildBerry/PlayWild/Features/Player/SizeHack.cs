@@ -1,5 +1,6 @@
 using UnityEngine;
 using PlayWild.Features.Base;
+using PlayWild.Interface;
 using PlayWild.Utils;
 using MelonLoader;
 
@@ -8,16 +9,15 @@ namespace PlayWild.Features.Player
     public class SizeHack : BaseFeature
     {
         public override string Name => "Size Hack";
-        
+
         private float sizeMultiplier = 2.0f;
         private string sizeInputText = "2.0";
         private Vector3 originalPlayerScale = Vector3.one;
-        
+
         public override void Initialize()
         {
             base.Initialize();
-            
-            // Load persisted values
+
             sizeMultiplier = GetPersistedValue("sizeMultiplier", 2.0f);
             sizeInputText = sizeMultiplier.ToString();
         }
@@ -35,19 +35,17 @@ namespace PlayWild.Features.Player
 
         public override void OnGUI(Rect area)
         {
-            DrawCheckbox(new Rect(area.x, area.y, 16, 16), IsEnabled, Name, 
+            DrawToggle(new Rect(area.x, area.y, area.width, WildBerryTheme.ToggleHeight), IsEnabled, Name,
                 (value) => { IsEnabled = value; });
-            
+
             if (IsEnabled)
             {
                 float yOffset = 25;
-                GUI.color = Color.white;
-                
-                // Size input field
-                GUI.Label(new Rect(area.x + 5, area.y + yOffset, 100, 20), "Size multiplier:");
+
+                DrawLabel(new Rect(area.x + 5, area.y + yOffset, 100, 20), "Size multiplier:");
                 yOffset += 20;
-                
-                string newSizeText = GUI.TextField(new Rect(area.x + 5, area.y + yOffset, 80, 20), sizeInputText);
+
+                string newSizeText = DrawStyledTextField(new Rect(area.x + 5, area.y + yOffset, 80, 20), sizeInputText);
                 if (newSizeText != sizeInputText)
                 {
                     sizeInputText = newSizeText;
@@ -64,10 +62,9 @@ namespace PlayWild.Features.Player
         {
             if (!IsEnabled)
             {
-                return 25f; // Just checkbox height
+                return 25f;
             }
-            
-            // Checkbox (25) + Label (20) + TextField (25)
+
             return 70f;
         }
 

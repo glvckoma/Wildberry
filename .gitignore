@@ -15,3 +15,6 @@
 
 # Visual Studio user specific files
 .vs/
+
+#Others
+MelonLoader/

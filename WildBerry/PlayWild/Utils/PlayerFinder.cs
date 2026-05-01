@@ -5,33 +5,52 @@ namespace PlayWild.Utils
 {
     public static class PlayerFinder
     {
+        private static GameObject cachedPlayer;
+        private static float lastCacheTime;
+        private const float CACHE_DURATION = 2f;
+
         public static GameObject FindPlayerObject()
         {
             try
             {
-                // Try common player object names
-                GameObject player = GameObject.Find("Player");
-                if (player != null) return player;
+                if (cachedPlayer != null && Time.time - lastCacheTime < CACHE_DURATION)
+                    return cachedPlayer;
 
-                player = GameObject.Find("LocalPlayer");
-                if (player != null) return player;
+                cachedPlayer = null;
 
-                player = GameObject.Find("PlayerAvatar");
-                if (player != null) return player;
-
-                // Try finding by tag
-                player = GameObject.FindWithTag("Player");
-                if (player != null) return player;
-
-                // Search for objects with player-related components
-                var allObjects = UnityEngine.Object.FindObjectsOfType<GameObject>();
-                foreach (var obj in allObjects)
+                var actorsObject = GameObject.Find("Actors");
+                if (actorsObject != null)
                 {
-                    if (obj.name.ToLower().Contains("player") && 
-                        (obj.GetComponent<CharacterController>() != null || obj.GetComponent<Rigidbody>() != null))
+                    var localPlayerTransform = actorsObject.transform.Find("LocalPlayer");
+                    if (localPlayerTransform != null)
                     {
-                        return obj;
+                        for (int i = 0; i < localPlayerTransform.childCount; i++)
+                        {
+                            var child = localPlayerTransform.GetChild(i);
+                            if (child.name.StartsWith("(Actor_Local)"))
+                            {
+                                cachedPlayer = child.gameObject;
+                                lastCacheTime = Time.time;
+                                return cachedPlayer;
+                            }
+                        }
                     }
+                }
+
+                GameObject player = GameObject.Find("LocalPlayer");
+                if (player != null)
+                {
+                    cachedPlayer = player;
+                    lastCacheTime = Time.time;
+                    return cachedPlayer;
+                }
+
+                player = GameObject.Find("Player");
+                if (player != null)
+                {
+                    cachedPlayer = player;
+                    lastCacheTime = Time.time;
+                    return cachedPlayer;
                 }
 
                 return null;
@@ -41,6 +60,11 @@ namespace PlayWild.Utils
                 MelonLogger.Error($"Error finding player object: {ex.Message}");
                 return null;
             }
+        }
+
+        public static void ClearCache()
+        {
+            cachedPlayer = null;
         }
     }
 }

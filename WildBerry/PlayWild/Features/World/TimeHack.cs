@@ -1,5 +1,6 @@
 using UnityEngine;
 using PlayWild.Features.Base;
+using PlayWild.Interface;
 using MelonLoader;
 
 namespace PlayWild.Features.World
@@ -7,16 +8,15 @@ namespace PlayWild.Features.World
     public class TimeHack : BaseFeature
     {
         public override string Name => "Time Hack";
-        
+
         private float timeScale = 2.0f;
         private string timeInputText = "2.0";
         private float originalTimeScale = 1.0f;
-        
+
         public override void Initialize()
         {
             base.Initialize();
-            
-            // Load persisted values
+
             timeScale = GetPersistedValue("timeScale", 2.0f);
             timeInputText = timeScale.ToString();
         }
@@ -39,19 +39,17 @@ namespace PlayWild.Features.World
 
         public override void OnGUI(Rect area)
         {
-            DrawCheckbox(new Rect(area.x, area.y, 16, 16), IsEnabled, Name, 
+            DrawToggle(new Rect(area.x, area.y, area.width, WildBerryTheme.ToggleHeight), IsEnabled, Name,
                 (value) => { IsEnabled = value; });
-            
+
             if (IsEnabled)
             {
                 float yOffset = 25;
-                GUI.color = Color.white;
-                
-                // Time scale input field
-                GUI.Label(new Rect(area.x + 5, area.y + yOffset, 100, 20), "Time multiplier:");
+
+                DrawLabel(new Rect(area.x + 5, area.y + yOffset, 100, 20), "Time multiplier:");
                 yOffset += 20;
-                
-                string newTimeText = GUI.TextField(new Rect(area.x + 5, area.y + yOffset, 80, 20), timeInputText);
+
+                string newTimeText = DrawStyledTextField(new Rect(area.x + 5, area.y + yOffset, 80, WildBerryTheme.TextFieldHeight), timeInputText);
                 if (newTimeText != timeInputText)
                 {
                     timeInputText = newTimeText;
@@ -61,10 +59,9 @@ namespace PlayWild.Features.World
                         SetPersistedValue("timeScale", timeScale);
                     }
                 }
-                yOffset += 25;
-                
-                // Current time scale display
-                GUI.Label(new Rect(area.x + 5, area.y + yOffset, 200, 20), $"Current: {Time.timeScale:F1}x");
+                yOffset += 29;
+
+                DrawLabel(new Rect(area.x + 5, area.y + yOffset, 200, 20), $"Current: {Time.timeScale:F1}x");
             }
         }
 
@@ -72,11 +69,10 @@ namespace PlayWild.Features.World
         {
             if (!IsEnabled)
             {
-                return 25f; // Just checkbox height
+                return WildBerryTheme.ToggleHeight;
             }
-            
-            // Checkbox (25) + Label (20) + TextField (25) + Display Label (20)
-            return 90f;
+
+            return 94f;
         }
 
         private void ApplyTimeHack()
